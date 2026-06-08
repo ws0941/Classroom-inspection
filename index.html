@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>溪海國小 | 智慧巡堂系統</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 隱藏原生滾動條，套用優雅樣式 */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #99f6e4; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #2dd4bf; }
+        
+        /* 蘋果風格的平滑滑桿 */
+        input[type=range] { -webkit-appearance: none; background: transparent; }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; height: 26px; width: 26px; border-radius: 50%;
+            background: #ffffff; border: 3px solid currentColor; cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1); transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+            margin-top: -9px;
+        }
+        input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 8px; border-radius: 9999px; background: #ccfbf1; }
+        
+        /* 滑桿動態色彩 */
+        #interaction_score { color: #0d9488; }
+        #engagement_score { color: #059669; }
+        #interaction_score::-webkit-slider-runnable-track { background: linear-gradient(to right, #5eead4 var(--val, 50%), #ccfbf1 0); }
+        #engagement_score::-webkit-slider-runnable-track { background: linear-gradient(to right, #6ee7b7 var(--val, 50%), #d1fae5 0); }
+
+        /* 漸層文字特效 */
+        .text-gradient {
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-teal-50 via-emerald-50 to-cyan-100 min-h-screen py-10 px-4 font-sans text-slate-800 antialiased selection:bg-teal-200 relative overflow-x-hidden">
+
+    <div class="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-teal-300/20 blur-[100px] pointer-events-none"></div>
+    <div class="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-emerald-300/20 blur-[100px] pointer-events-none"></div>
+
+    <div class="max-w-3xl mx-auto relative z-10">
+        
+        <!-- 新增：浮動式巡堂計時器 (Sticky 黏著在頂部) -->
+        <div class="sticky top-4 z-50 flex justify-center mb-8 px-4 pointer-events-none">
+            <div class="bg-white/80 backdrop-blur-xl shadow-[0_8px_30px_rgba(0,0,0,0.08)] border border-white rounded-full px-6 py-3 flex items-center space-x-4 pointer-events-auto transform transition-all hover:scale-105">
+                <div id="timerContainer" class="flex items-center text-teal-700 transition-colors duration-300">
+                    <svg class="w-5 h-5 mr-2 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    <span id="timerDisplay" class="text-2xl font-black tabular-nums tracking-wider">05:00</span>
+                </div>
+                <div class="w-px h-6 bg-slate-200"></div>
+                <div class="flex space-x-2">
+                    <button type="button" id="startTimerBtn" class="text-teal-600 hover:text-teal-800 p-1.5 bg-teal-50 hover:bg-teal-100 rounded-full transition-colors" title="開始/暫停">
+                        <svg id="timerIcon" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    </button>
+                    <button type="button" id="resetTimerBtn" class="text-slate-400 hover:text-slate-600 p-1.5 bg-slate-50 hover:bg-slate-100 rounded-full transition-colors" title="重設5分鐘">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="text-center mb-12">
+            <div class="inline-flex items-center justify-center p-4 bg-white/60 backdrop-blur-lg rounded-2xl shadow-sm border border-white mb-6 transform hover:scale-105 transition-transform duration-300">
+                <svg class="w-10 h-10 text-teal-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                </svg>
+            </div>
+            <h1 class="text-4xl md:text-5xl font-black tracking-tight mb-3 text-slate-800">
+                溪海國小<span class="bg-gradient-to-r from-teal-600 to-emerald-500 text-gradient">智慧巡堂</span>
+            </h1>
+            <p class="text-slate-500 font-medium tracking-wide">用數據點亮教學・以觀課陪伴成長</p>
+        </div>
+
+        <form id="observationForm" class="bg-white/60 backdrop-blur-2xl p-8 md:p-12 rounded-[2.5rem] shadow-[0_8px_40px_rgba(0,0,0,0.04)] border border-white space-y-10">
+            
+            <div class="space-y-6">
+                <div class="flex items-center text-teal-700 mb-4">
+                    <div class="w-8 h-8 rounded-full bg-teal-100 flex items-center justify-center mr-3">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                    </div>
+                    <h2 class="text-xl font-bold">基本觀察資訊</h2>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="group relative">
+                        <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-2">巡堂人員</label>
+                        <input type="text" id="observer" required class="w-full px-5 py-4 bg-white/50 border border-white focus:border-teal-400 focus:bg-white rounded-2xl outline-none transition-all duration-300 shadow-sm focus:shadow-md focus:ring-4 focus:ring-teal-50">
+                    </div>
+                    <div class="group relative">
+                        <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-2">巡堂日期</label>
+                        <input type="date" id="date_observe" required class="w-full px-5 py-4 bg-white/50 border border-white focus:border-teal-400 focus:bg-white rounded-2xl outline-none transition-all duration-300 shadow-sm focus:shadow-md focus:ring-4 focus:ring-teal-50 text-slate-700">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="group relative">
+                        <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-2">節次</label>
+                        <select id="period" class="w-full px-5 py-4 bg-white/50 border border-white focus:border-teal-400 focus:bg-white rounded-2xl outline-none transition-all duration-300 shadow-sm focus:shadow-md focus:ring-4 focus:ring-teal-50 cursor-pointer appearance-none text-slate-700">
+                            <option>第一節</option><option>第二節</option><option>第三節</option><option>第四節</option>
+                            <option>第五節</option><option>第六節</option><option>第七節</option>
+                        </select>
+                    </div>
+                    <div class="md:col-span-2 group relative">
+                        <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-2">受訪教師</label>
+                        <input type="text" id="teacher_name" required placeholder="請輸入教師姓名" class="w-full px-5 py-4 bg-white/50 border border-white focus:border-teal-400 focus:bg-white rounded-2xl outline-none transition-all duration-300 shadow-sm focus:shadow-md focus:ring-4 focus:ring-teal-50">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="group relative">
+                        <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-2">班級</label>
+                        <input type="text" id="grade_class" required placeholder="例如：六年甲班" class="w-full px-5 py-4 bg-white/50 border border-white focus:border-teal-400 focus:bg-white rounded-2xl outline-none transition-all duration-300 shadow-sm focus:shadow-md focus:ring-4 focus:ring-teal-50">
+                    </div>
+                    <div class="group relative">
+                        <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-2">科目</label>
+                        <input type="text" id="subject" required placeholder="例如：國語、數學" class="w-full px-5 py-4 bg-white/50 border border-white focus:border-teal-400 focus:bg-white rounded-2xl outline-none transition-all duration-300 shadow-sm focus:shadow-md focus:ring-4 focus:ring-teal-50">
+                    </div>
+                </div>
+            </div>
+
+            <div class="space-y-6 pt-4">
+                <div class="flex items-center text-emerald-700 mb-4">
+                    <div class="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center mr-3">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+                    </div>
+                    <h2 class="text-xl font-bold">觀察評分指標</h2>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 bg-white/40 p-8 rounded-3xl border border-white shadow-sm">
+                    <div class="space-y-5">
+                        <div class="flex justify-between items-end">
+                            <label class="font-bold text-slate-700">互動熱絡程度</label>
+                            <span id="interaction_val" class="text-teal-600 font-black text-xl">3 分</span>
+                        </div>
+                        <input type="range" id="interaction_score" min="1" max="5" value="3" oninput="updateRangeStyle(this, 'interaction_val')" class="w-full">
+                        <div class="flex justify-between text-xs text-slate-400 font-medium px-1"><span>1 (冷清)</span><span>5 (熱烈)</span></div>
+                    </div>
+                    
+                    <div class="space-y-5">
+                        <div class="flex justify-between items-end">
+                            <label class="font-bold text-slate-700">學生專注度</label>
+                            <span id="engagement_val" class="text-emerald-600 font-black text-xl">3 分</span>
+                        </div>
+                        <input type="range" id="engagement_score" min="1" max="5" value="3" oninput="updateRangeStyle(this, 'engagement_val')" class="w-full">
+                        <div class="flex justify-between text-xs text-slate-400 font-medium px-1"><span>1 (分心)</span><span>5 (投入)</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="highlightsChecklist" class="space-y-6 pt-4">
+                <div class="flex items-center text-amber-500 mb-2">
+                    <div class="w-8 h-8 rounded-full bg-amber-50 flex items-center justify-center mr-3">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" /></svg>
+                    </div>
+                    <h2 class="text-xl font-bold">教學亮點紀錄 <span class="text-xs text-slate-400 font-normal ml-2 tracking-widest uppercase">(可多選)</span></h2>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="bg-blue-50/40 p-5 rounded-2xl border border-blue-100/50 space-y-3">
+                        <p class="text-[11px] font-bold text-blue-800 uppercase tracking-widest ml-1 opacity-70">教學設計與目標</p>
+                        <label class="relative cursor-pointer block">
+                            <input type="checkbox" value="課程目標清晰" class="peer sr-only">
+                            <div class="px-4 py-3 bg-white/80 border border-transparent rounded-xl peer-checked:bg-blue-500 peer-checked:text-white peer-checked:shadow-lg peer-checked:shadow-blue-500/30 hover:bg-white transition-all duration-300 shadow-sm text-sm font-medium text-slate-600 flex justify-between items-center">
+                                <span>🎯 課程目標清晰</span>
+                                <svg class="w-4 h-4 opacity-0 peer-checked:opacity-100 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                            </div>
+                        </label>
+                        <label class="relative cursor-pointer block">
+                            <input type="checkbox" value="教材編排結構明確" class="peer sr-only">
+                            <div class="px-4 py-3 bg-white/80 border border-transparent rounded-xl peer-checked:bg-blue-500 peer-checked:text-white peer-checked:shadow-lg peer-checked:shadow-blue-500/30 hover:bg-white transition-all duration-300 shadow-sm text-sm font-medium text-slate-600 flex justify-between items-center">
+                                <span>📚 教材編排明確</span>
+                                <svg class="w-4 h-4 opacity-0 peer-checked:opacity-100 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                            </div>
+                        </label>
+                    </div>
+
+                    <div class="bg-teal-50/40 p-5 rounded-2xl border border-teal-100/50 space-y-3">
+                        <p class="text-[11px] font-bold text-teal-800 uppercase tracking-widest ml-1 opacity-70">教學互動與科技</p>
+                        <label class="relative cursor-pointer block">
+                            <input type="checkbox" value="善用資訊科技" class="peer sr-only">
+                            <div class="px-4 py-3 bg-white/80 border border-transparent rounded-xl peer-checked:bg-teal-500 peer-checked:text-white peer-checked:shadow-lg peer-checked:shadow-teal-500/30 hover:bg-white transition-all duration-300 shadow-sm text-sm font-medium text-slate-600 flex justify-between items-center">
+                                <span>💻 善用資訊科技</span>
+                                <svg class="w-4 h-4 opacity-0 peer-checked:opacity-100 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                            </div>
+                        </label>
+                        <label class="relative cursor-pointer block">
+                            <input type="checkbox" value="師生互動熱絡" class="peer sr-only">
+                            <div class="px-4 py-3 bg-white/80 border border-transparent rounded-xl peer-checked:bg-teal-500 peer-checked:text-white peer-checked:shadow-lg peer-checked:shadow-teal-500/30 hover:bg-white transition-all duration-300 shadow-sm text-sm font-medium text-slate-600 flex justify-between items-center">
+                                <span>💬 師生互動熱絡</span>
+                                <svg class="w-4 h-4 opacity-0 peer-checked:opacity-100 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                            </div>
+                        </label>
+                    </div>
+
+                    <div class="bg-emerald-50/40 p-5 rounded-2xl border border-emerald-100/50 space-y-3">
+                        <p class="text-[11px] font-bold text-emerald-800 uppercase tracking-widest ml-1 opacity-70">班級經營與氛圍</p>
+                        <label class="relative cursor-pointer block">
+                            <input type="checkbox" value="學生參與度高" class="peer sr-only">
+                            <div class="px-4 py-3 bg-white/80 border border-transparent rounded-xl peer-checked:bg-emerald-500 peer-checked:text-white peer-checked:shadow-lg peer-checked:shadow-emerald-500/30 hover:bg-white transition-all duration-300 shadow-sm text-sm font-medium text-slate-600 flex justify-between items-center">
+                                <span>🌟 學生參與度高</span>
+                                <svg class="w-4 h-4 opacity-0 peer-checked:opacity-100 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                            </div>
+                        </label>
+                        <label class="relative cursor-pointer block">
+                            <input type="checkbox" value="班級常規經營良好" class="peer sr-only">
+                            <div class="px-4 py-3 bg-white/80 border border-transparent rounded-xl peer-checked:bg-emerald-500 peer-checked:text-white peer-checked:shadow-lg peer-checked:shadow-emerald-500/30 hover:bg-white transition-all duration-300 shadow-sm text-sm font-medium text-slate-600 flex justify-between items-center">
+                                <span>🛡️ 常規經營良好</span>
+                                <svg class="w-4 h-4 opacity-0 peer-checked:opacity-100 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <textarea id="teaching_highlights_other" placeholder="其他亮點補充..." class="w-full px-5 py-4 bg-white/50 border border-white focus:border-amber-400 focus:bg-white rounded-2xl outline-none transition-all duration-300 shadow-sm focus:shadow-md focus:ring-4 focus:ring-amber-50"></textarea>
+            </div>
+
+            <div class="space-y-4 pt-4">
+                <div class="flex items-center text-sky-700 mb-2">
+                    <div class="w-8 h-8 rounded-full bg-sky-100 flex items-center justify-center mr-3">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                    </div>
+                    <h2 class="text-xl font-bold">具體建議 <span class="text-xs text-slate-400 font-normal ml-2 tracking-widest uppercase">(給老師的悄悄話)</span></h2>
+                </div>
+                <textarea id="suggestions" placeholder="寫下對教學的具體建議，或是需要行政端協助的事項..." class="w-full px-5 py-4 bg-white/50 border border-white focus:border-sky-400 focus:bg-white rounded-2xl outline-none transition-all duration-300 shadow-sm focus:shadow-md focus:ring-4 focus:ring-sky-50 h-28 resize-none"></textarea>
+            </div>
+
+            <button type="submit" id="submitBtn" class="w-full mt-10 bg-gradient-to-r from-teal-600 to-emerald-500 hover:from-teal-500 hover:to-emerald-400 text-white font-bold py-5 rounded-2xl transition-all duration-300 shadow-[0_10px_25px_rgba(20,184,166,0.4)] hover:shadow-[0_15px_35px_rgba(20,184,166,0.5)] transform hover:-translate-y-1 active:translate-y-0 flex items-center justify-center space-x-2 text-lg tracking-wider">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+                <span>送出巡堂紀錄</span>
+            </button>
+        </form>
+    </div>
+
+    <script>
+        // 🚨 記得換成您最新的 Web App URL
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbyirJT1fR_XUZUrHw3adIFxx47G9gRRGeTwQniOYiXw_VtZxfBxyPRe9kIQZN7-fBD8dQ/exec";
+
+        // 新增：巡堂 5 分鐘計時器邏輯
+        let timerInterval;
+        let timeLeft = 300; // 5分鐘 = 300秒
+        let isTimerRunning = false;
+
+        const timerDisplay = document.getElementById('timerDisplay');
+        const timerContainer = document.getElementById('timerContainer');
+        const startTimerBtn = document.getElementById('startTimerBtn');
+        const resetTimerBtn = document.getElementById('resetTimerBtn');
+        const timerIcon = document.getElementById('timerIcon');
+
+        function updateTimerDisplay() {
+            const minutes = Math.floor(timeLeft / 60).toString().padStart(2, '0');
+            const seconds = (timeLeft % 60).toString().padStart(2, '0');
+            timerDisplay.textContent = `${minutes}:${seconds}`;
+
+            // 時間快到時改變顏色 (剩下最後1分鐘變橘色，時間到變紅色)
+            timerContainer.classList.remove('text-teal-700', 'text-amber-500', 'text-rose-500');
+            if (timeLeft <= 60 && timeLeft > 0) {
+                timerContainer.classList.add('text-amber-500');
+            } else if (timeLeft === 0) {
+                timerContainer.classList.add('text-rose-500');
+            } else {
+                timerContainer.classList.add('text-teal-700');
+            }
+        }
+
+        function toggleTimer() {
+            if (isTimerRunning) {
+                clearInterval(timerInterval);
+                isTimerRunning = false;
+                // 換回播放圖示
+                timerIcon.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />`;
+            } else {
+                if (timeLeft === 0) return; // 0秒防呆
+                isTimerRunning = true;
+                // 換成暫停圖示
+                timerIcon.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />`;
+                
+                timerInterval = setInterval(() => {
+                    timeLeft--;
+                    updateTimerDisplay();
+                    
+                    if (timeLeft <= 0) {
+                        clearInterval(timerInterval);
+                        isTimerRunning = false;
+                        timerIcon.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />`;
+                        
+                        // 時間到的無聲提示 (震動與視覺跳動)
+                        if ("vibrate" in navigator) navigator.vibrate([200, 100, 200]);
+                        timerContainer.parentElement.classList.add('animate-bounce');
+                        setTimeout(() => timerContainer.parentElement.classList.remove('animate-bounce'), 3000);
+                    }
+                }, 1000);
+            }
+        }
+
+        function resetTimer() {
+            clearInterval(timerInterval);
+            isTimerRunning = false;
+            timeLeft = 300; // 重置為5分鐘
+            updateTimerDisplay();
+            timerContainer.parentElement.classList.remove('animate-bounce');
+            timerIcon.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />`;
+        }
+
+        startTimerBtn.addEventListener('click', toggleTimer);
+        resetTimerBtn.addEventListener('click', resetTimer);
+
+        document.addEventListener("DOMContentLoaded", () => {
+            document.getElementById('date_observe').value = new Date().toISOString().split('T')[0];
+        });
+
+        function updateRangeStyle(input, displayId) {
+            const val = (input.value - input.min) / (input.max - input.min) * 100;
+            input.style.setProperty('--val', `${val}%`);
+            document.getElementById(displayId).innerText = `${input.value} 分`;
+        }
+
+        document.getElementById('observationForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('submitBtn');
+            const originalBtnHtml = btn.innerHTML;
+            
+            btn.disabled = true; 
+            btn.innerHTML = `<svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> 紀錄處理中...`;
+
+            const selected = Array.from(document.querySelectorAll('#highlightsChecklist input:checked')).map(cb => cb.value);
+            const other = document.getElementById('teaching_highlights_other').value;
+            
+            const data = {
+                observer: document.getElementById('observer').value,
+                date_observe: document.getElementById('date_observe').value,
+                period: document.getElementById('period').value,
+                teacher_name: document.getElementById('teacher_name').value,
+                grade_class: document.getElementById('grade_class').value,
+                subject: document.getElementById('subject').value,
+                interaction_score: document.getElementById('interaction_score').value,
+                engagement_score: document.getElementById('engagement_score').value,
+                teaching_highlights: [...selected, other].filter(Boolean).join('、'),
+                suggestions: document.getElementById('suggestions').value
+            };
+
+            try {
+                await fetch(GAS_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(data) });
+                
+                btn.innerHTML = `<svg class="w-6 h-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg> 傳送成功`;
+                
+                setTimeout(() => {
+                    document.getElementById('observationForm').reset();
+                    document.getElementById('date_observe').value = new Date().toISOString().split('T')[0];
+                    document.querySelectorAll('input[type="range"]').forEach(input => updateRangeStyle(input, input.id.replace('_score', '_val')));
+                    btn.innerHTML = originalBtnHtml;
+                    btn.disabled = false;
+                }, 2000);
+
+            } catch (err) { 
+                alert('傳送失敗，請檢查網址與部署權限');
+                btn.innerHTML = originalBtnHtml;
+                btn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>
