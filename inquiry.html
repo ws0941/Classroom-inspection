@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智慧巡堂紀錄查詢系統</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 min-h-screen py-8 font-sans">
+    <div class="max-w-5xl mx-auto bg-white rounded-2xl shadow-xl p-6 border border-slate-200">
+        <h2 class="text-2xl font-bold text-slate-800 mb-6 flex items-center">
+            <span class="mr-2">🔍</span> 巡堂紀錄查詢與匯出
+        </h2>
+
+        <!-- 搜尋與匯出區塊 -->
+        <div class="flex flex-col md:flex-row gap-4 mb-6">
+            <input type="text" id="teacherSearch" placeholder="輸入教師姓名查詢..." class="flex-grow p-3 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500">
+            <button onclick="handleSearch()" class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition">查詢</button>
+            <button onclick="exportToCsv()" class="bg-emerald-600 text-white px-6 py-3 rounded-lg hover:bg-emerald-700 transition">📥 匯出 CSV</button>
+        </div>
+
+        <!-- 查詢結果列表 -->
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm text-left text-slate-600">
+                <thead class="text-xs text-slate-700 uppercase bg-slate-100">
+                    <tr>
+                        <th class="px-4 py-3">日期</th>
+                        <th class="px-4 py-3">教師</th>
+                        <th class="px-4 py-3">科目</th>
+                        <th class="px-4 py-3">互動</th>
+                        <th class="px-4 py-3">專注</th>
+                        <th class="px-4 py-3">亮點</th>
+                    </tr>
+                </thead>
+                <tbody id="resultBody">
+                    <!-- 資料將透過 JavaScript 動態載入 -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // 請確保此處的 URL 與您 Google Apps Script 部署的 Web App URL 完全一致
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbyirJT1fR_XUZUrHw3adIFxx47G9gRRGeTwQniOYiXw_VtZxfBxyPRe9kIQZN7-fBD8dQ/exec";
+
+        // 查詢功能
+        async function handleSearch() {
+            const teacher = document.getElementById('teacherSearch').value;
+            const body = document.getElementById('resultBody');
+            body.innerHTML = '<tr><td colspan="6" class="text-center py-4">查詢中...</td></tr>';
+
+            try {
+                const response = await fetch(`${GAS_URL}?action=search&teacher=${encodeURIComponent(teacher)}`);
+                const result = await response.json();
+                
+                body.innerHTML = '';
+                if (result.data.length === 0) {
+                    body.innerHTML = '<tr><td colspan="6" class="text-center py-4">查無資料</td></tr>';
+                    return;
+                }
+
+                result.data.forEach(row => {
+                    body.innerHTML += `
+                        <tr class="border-b hover:bg-slate-50">
+                            <td class="px-4 py-3">${row.date_observe}</td>
+                            <td class="px-4 py-3 font-bold text-slate-800">${row.teacher_name}</td>
+                            <td class="px-4 py-3">${row.subject}</td>
+                            <td class="px-4 py-3">${row.interaction_score}</td>
+                            <td class="px-4 py-3">${row.engagement_score}</td>
+                            <td class="px-4 py-3 truncate max-w-[200px]">${row.teaching_highlights}</td>
+                        </tr>
+                    `;
+                });
+            } catch (err) {
+                body.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-red-500">連線錯誤，請檢查部署狀態</td></tr>';
+            }
+        }
+
+        // 匯出功能
+        function exportToCsv() {
+            const teacher = document.getElementById('teacherSearch').value;
+            const url = `${GAS_URL}?action=export&teacher=${encodeURIComponent(teacher)}`;
+            window.open(url, '_blank');
+        }
+
+        // 頁面載入時自動執行一次查詢
+        handleSearch();
+    </script>
+</body>
+</html>
